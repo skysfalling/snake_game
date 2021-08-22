@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SnakeGame</title>
+  <style>
+  html, body {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    background: black;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  canvas {
+    border: 1px solid pink;
+  }
+  </style>
+</head>
+<body onload="Start()">
+<canvas width="400" height="400" id="game_canvas"></canvas>
+<script>
+var canvas = document.getElementById('game_canvas');
+var ctx = canvas.getContext('2d');
+
+var gridSize = 16;
+
+//OBJECT - ORIENTED PROGRAMMING
+//a variable holding different parameters -> an 'object'
+var snake = {
+    x: 160,
+    y: 160,
+
+    xMove: gridSize,
+    yMove: 0,
+   
+    cells: [],
+    cell_count: 4
+};
+
+var apple ={
+    x: 320,
+    y: 320
+};
+
+//an object holding different functions
+var gameManager = {
+    start: function()
+    {
+        setInterval(updateGameArea, 66.6666667); //15 frames a second -> 1000ms(1second)/15 = 66.66666667
+    },
+    clear: function(){
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+}
+
+function Start(){
+    gameManager.start();
+}
+
+function updateGameArea() {
+    gameManager.clear();
+    KeyDownListener();
+
+    drawGrid(); //draw grid first because we want it behind the moving elements
+
+    //move snake by 'velocity'
+    snake.x += snake.xMove;
+    snake.y += snake.yMove;
+
+    // wrap snake position horizontally on edge of screen
+    if (snake.x < 0) {
+        snake.x = canvas.width - gridSize;
+    }
+    else if (snake.x >= canvas.width) {
+        snake.x = 0;
+    }
+    
+    // wrap snake position vertically on edge of screen
+    if (snake.y < 0) {
+        snake.y = canvas.height - gridSize; 
+    }
+    else if (snake.y >= canvas.height) {
+        snake.y = 0;
+    }
+
+    //DRAW SNAKE
+    //https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
+
+    ctx.fillStyle = 'blue';
+
+
+    var snakeHeadPosition = {x: snake.x, y: snake.y};
+    //add cur snake head pos to beginning of array
+    snake.cells.unshift(snakeHeadPosition); 
+
+    //remove cells from array if they get too far away
+    if (snake.cells.length > snake.cell_count){ snake.cells.pop() }
+
+    //for each cell in array... (& index)
+    snake.cells.forEach(function(cell, index)
+    {
+        ctx.fillRect(cell.x, cell.y, gridSize-1, gridSize-1); //create cell at specified position
+    });
+
+    //APPLE
+    ctx.fillStyle = 'red';
+    ctx.fillRect(apple.x, apple.y, gridSize-1, gridSize-1); //create cell at specified apple position
+
+    //if snake eats apple
+    if (snakeHeadPosition.x == apple.x && snakeHeadPosition.y == apple.y)
+    {
+        //snake grows bigger
+        snake.cell_count++;
+        //apple moves
+        findNewApplePostition();
+    }
+
+    //SNAKE COLLISION
+    snake.cells.forEach(function(cell, index){
+        //if collide with body part, reset (head is index 0)
+        if (snakeHeadPosition.x == cell.x && snakeHeadPosition.y == cell.y && index != 0)
+        {
+            snake.x = 160;
+            snake.y = 160;
+            snake.cells = [];
+            snake.cell_count = 4;
+            snake.xMove = gridSize;
+            snake.yMove = 0;
+
+            findNewApplePostition();
+        }
+    });
+
+}
+
+function findNewApplePostition()
+{
+    //put apple in random position
+    apple.x = gridSize * getRandomInt(1, canvas.width / gridSize);
+    apple.y = gridSize * getRandomInt(1, canvas.width / gridSize);
+
+    //if apple in same cell as snake, find new position
+    snake.cells.forEach(function(cell, index)
+    {
+        if (apple.x == cell.x && apple.y == cell.y)
+        {
+            findNewApplePostition();
+        }
+    });
+}
+
+function KeyDownListener(){
+
+    //look for keys down
+    window.addEventListener("keydown", function (event) {
+        if (event.defaultPrevented) {
+            return; // Do nothing if the event was already processed
+        }
+ 
+        //console.log(event.key); //show all current keydown events
+
+        switch (event.key) {
+            case "ArrowDown" || "s":
+                // code for "down arrow" key press.
+                snake.xMove = 0;
+                snake.yMove = gridSize;
+            break;
+            case "ArrowUp" || "w":
+                // code for "up arrow" key press.
+                snake.xMove = 0;
+                snake.yMove = -gridSize;
+            break;
+            case "ArrowLeft" || "a":
+                // code for "left arrow" key press.
+                snake.xMove = -gridSize;
+                snake.yMove = 0;
+            break;
+            case "ArrowRight" || "d":
+                // code for "right arrow" key press.
+                snake.xMove = gridSize;
+                snake.yMove = 0;
+            break;
+            default:
+ 
+            return; // Quit when this doesn't handle the key event.
+        }
+ 
+        // Cancel the default action to avoid it being handled twice
+        event.preventDefault();
+    }, true);
+}
+
+function drawGrid(){
+
+    for (var i = 0; i < canvas.width/gridSize; i++)
+    {
+
+        //messing with lines:
+        //https://instructobit.com/tutorial/89/HTML-canvas%3A-Modifying-the-width%2C-color-and-style-of-lines
+        ctx.strokeStyle = 'pink';
+        ctx.lineWidth = 0.2;
+
+        //columns
+        ctx.beginPath();
+        ctx.moveTo(i * gridSize, 0);
+        ctx.lineTo(i * gridSize, canvas.height);
+        ctx.stroke(); 
+
+        //rows
+        ctx.beginPath();
+        ctx.moveTo(0, i * gridSize);
+        ctx.lineTo(canvas.width, i * gridSize);
+        ctx.stroke(); 
+    }
+
+
+
+}
+
+function getRandomInt(min, max){
+    return Math.floor(Math.random() * (max - min)) + min;
+}
+</script>
+
+<div id="test" ; style= "color:white;
+                        position:absolute;
+                        text-align:center;
+                        margin: auto;
+                        display: block;
+                        top: 200px;
+                        bottom: 0;
+                        left: 0;
+                        right: 0;">
+The Snake Game
+</div>
+
+
+</body>
+</html>
