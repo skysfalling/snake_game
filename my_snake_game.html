@@ -15,8 +15,27 @@
     justify-content: center;
   }
   canvas {
-    border: 1px solid pink;
+    border: 10px solid white;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);   
   }
+
+  .button {
+    background-color: #4CAF50; /* Green */
+    border: none;
+    color: white;
+    padding: 15px 32px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+  }
+  .button2 {background-color: #008CBA;} /* Blue */
+  .button3 {background-color: #f44336;} /* Red */ 
+
+
   </style>
 </head>
 <body onload="Start()">
@@ -26,6 +45,8 @@ var canvas = document.getElementById('game_canvas');
 var ctx = canvas.getContext('2d');
 
 var gridSize = 16;
+var gameScore = 0;
+var gameOver = true;
 
 //OBJECT - ORIENTED PROGRAMMING
 //a variable holding different parameters -> an 'object'
@@ -40,12 +61,171 @@ var snake = {
     cell_count: 4
 };
 
+
+//FRUIT OPTIONS ======================
+// basic apple for tutorial purposes, adds 1 to snake
 var apple ={
-    x: 320,
-    y: 320
+    name: "apple",
+    color: "red",
+    spawnCount: 1,
+    action: function(){
+        snake.cell_count++;
+        gameScore++;
+    }
 };
 
-//an object holding different functions
+//grape spawns multiple fruit at a time, adds 1 to snake
+var grape ={
+    name: "grape",
+    color: "purple",
+    spawnCount: 6,
+    action: function(){
+        snake.cell_count++;
+        gameScore++;
+    }
+}
+
+//blueberry cuts your snake size in half
+var blueberry = {
+    name: "blueberry",
+    color: "blue",
+    spawnCount: 1,
+    action: function(){
+
+        if (snake.cell_count > 4)
+        {
+
+        }
+
+        snake.cell_count = Math.floor(snake.cell_count / 2);
+        for (var i = 0; i < snake.cell_count; i++)
+        {
+            snake.cells.pop();
+        }
+    }
+}
+
+//pineapples add two cells to your snake and takes time off your timer
+var pineapple = {
+    name: "pineapple",
+    color: "yellow",
+    spawnCount: 3,
+    snake_cell_add: 2,
+    timer_reduce: 10,
+    action: function(){
+        gameTimer.value -= pineapple.timer_reduce;
+        snake.cell_count += pineapple.snake_cell_add;
+    }
+}
+
+//oranges add time to your timer
+var orange = {
+    name: "orange",
+    color: "orange",
+    spawnCount: 1,
+    timer_add: 20,
+    action: function(){
+        gameTimer.value += orange.timer_add;
+    }
+}
+
+//bombs kill you
+var bomb = {
+    name: "bomb",
+    color: "white",
+    spawnCount: 4,
+    action: function(){
+        //TODO: blow up
+        GameOver();
+    }
+}
+
+var fruitOptions = [apple, grape, blueberry, pineapple, orange]
+var fruit_on_board = []
+
+//FRUIT FUNCTIONS =============================
+function CreateNewFruit(fruitType)
+{
+    new_fruit = {
+        x: 0,
+        y: 0,
+        type: fruitType
+    };
+
+    var valid = true;
+
+    //put fruit in random position
+    new_fruit.x = gridSize * GetRandomInt(1, canvas.width / gridSize);
+    new_fruit.y = gridSize * GetRandomInt(1, canvas.width / gridSize);
+
+    //if fruit in same cell as snake, find new position
+    snake.cells.forEach(function(cell, index)
+    {
+        if (new_fruit.x == cell.x && new_fruit.y == cell.y)
+        {
+            valid = false;
+            console.log("in snake")
+        }
+    });
+
+    //if fruit is in same place as another
+    fruit_on_board.forEach(function(f, index)
+    {
+        if (new_fruit.x == f.x && new_fruit.y == f.y)
+        {
+            valid = false;
+            console.log("same place" + new_fruit.x + "/" + new_fruit.y)
+
+        }
+    });
+
+    if (valid){
+        ctx.fillStyle = new_fruit.type.color;
+        ctx.fillRect(new_fruit.x, new_fruit.y, gridSize-1, gridSize-1); //create fruit at specified position
+        fruit_on_board.push(new_fruit);
+    }
+    else{
+        CreateNewFruit(fruitType);
+    }
+}
+
+function SpawnNewFruit(type = null)
+{
+    var new_fruit = type;
+    if (new_fruit == null)
+    {
+        let randomIdx = Math.floor(Math.random() * fruitOptions.length);
+        new_fruit = fruitOptions[randomIdx]
+    }
+
+    //spawn fruit
+    ctx.fillStyle = new_fruit.color;
+    for (var i = 0; i < new_fruit.spawnCount; i++)
+    {
+        CreateNewFruit(new_fruit);
+    }
+
+}
+
+function FruitUpdate(){
+
+    //if no more fruit on board spawn new fruit
+    if (fruit_on_board.length == 0)
+    {
+        SpawnNewFruit();
+    }
+    else
+    {
+        //update fruit in display
+        fruit_on_board.forEach(function(f, index)
+        {
+            ctx.fillStyle = f.type.color;
+            ctx.fillRect(f.x, f.y, gridSize-1, gridSize-1); //create fruit at specified position
+        });
+    }
+}
+
+// GAME MANAGER ==========================================
 var gameManager = {
     start: function()
     {
@@ -56,16 +236,52 @@ var gameManager = {
     }
 }
 
+// TIMER ===================================================
+var gameTimer = {
+    value: 120,
+    timer_interval: null,
+    start: function()
+    {
+        timer_interval = setInterval(function(){gameTimer.update()},1000);
+    },
+    stop: function()
+    {
+        clearInterval(timer_interval);
+    },
+    update: function()
+    {
+        gameTimer.value--;
+        document.getElementById("timer").innerHTML = gameTimer.value;
+
+        if (gameTimer.value <= 0)
+        {
+            GameOver();
+        }
+    }
+}
+
+// GAME LOOP ===========================================
 function Start(){
+    NewGame();
     gameManager.start();
 }
 
 function updateGameArea() {
     gameManager.clear();
+    
     KeyDownListener();
 
-    drawGrid(); //draw grid first because we want it behind the moving elements
+    DrawGrid(); //draw grid first because we want it behind the moving elements
 
+    SnakeUpdate();
+    FruitUpdate();
+
+    //UPDATE SCORE
+    document.getElementById("score").innerHTML = "Score: " + gameScore;
+
+}
+
+function SnakeUpdate(){
     //move snake by 'velocity'
     snake.x += snake.xMove;
     snake.y += snake.yMove;
@@ -88,70 +304,50 @@ function updateGameArea() {
 
     //DRAW SNAKE
     //https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
-
-    ctx.fillStyle = 'blue';
-
-
     var snakeHeadPosition = {x: snake.x, y: snake.y};
     //add cur snake head pos to beginning of array
     snake.cells.unshift(snakeHeadPosition); 
 
     //remove cells from array if they get too far away
-    if (snake.cells.length > snake.cell_count){ snake.cells.pop() }
+    if (snake.cells.length > snake.cell_count)
+    { 
+        snake.cells.pop();
+    }
 
-    //for each cell in array... (& index)
+    //display snake on canvas
+    ctx.fillStyle = '#e42069';
     snake.cells.forEach(function(cell, index)
     {
         ctx.fillRect(cell.x, cell.y, gridSize-1, gridSize-1); //create cell at specified position
     });
 
-    //APPLE
-    ctx.fillStyle = 'red';
-    ctx.fillRect(apple.x, apple.y, gridSize-1, gridSize-1); //create cell at specified apple position
-
-    //if snake eats apple
-    if (snakeHeadPosition.x == apple.x && snakeHeadPosition.y == apple.y)
+    //if snake eats fruit
+    fruit_on_board.forEach(function(fruit, index)
     {
-        //snake grows bigger
-        snake.cell_count++;
-        //apple moves
-        findNewApplePostition();
-    }
+        if (snakeHeadPosition.x == fruit.x && snakeHeadPosition.y == fruit.y)
+        {
+            fruit.type.action();
+            fruit_on_board.splice(index, 1); //remove fruit
+        }
+    });
+
 
     //SNAKE COLLISION
     snake.cells.forEach(function(cell, index){
         //if collide with body part, reset (head is index 0)
         if (snakeHeadPosition.x == cell.x && snakeHeadPosition.y == cell.y && index != 0)
         {
-            snake.x = 160;
-            snake.y = 160;
-            snake.cells = [];
-            snake.cell_count = 4;
-            snake.xMove = gridSize;
-            snake.yMove = 0;
-
-            findNewApplePostition();
+            GameOver();
         }
     });
 
+
+
 }
 
-function findNewApplePostition()
-{
-    //put apple in random position
-    apple.x = gridSize * getRandomInt(1, canvas.width / gridSize);
-    apple.y = gridSize * getRandomInt(1, canvas.width / gridSize);
 
-    //if apple in same cell as snake, find new position
-    snake.cells.forEach(function(cell, index)
-    {
-        if (apple.x == cell.x && apple.y == cell.y)
-        {
-            findNewApplePostition();
-        }
-    });
-}
 
+//GENERAL FUNCTIONS ============================
 function KeyDownListener(){
 
     //look for keys down
@@ -160,40 +356,51 @@ function KeyDownListener(){
             return; // Do nothing if the event was already processed
         }
  
-        //console.log(event.key); //show all current keydown events
-
-        switch (event.key) {
-            case "ArrowDown" || "s":
-                // code for "down arrow" key press.
-                snake.xMove = 0;
-                snake.yMove = gridSize;
-            break;
-            case "ArrowUp" || "w":
-                // code for "up arrow" key press.
-                snake.xMove = 0;
-                snake.yMove = -gridSize;
-            break;
-            case "ArrowLeft" || "a":
-                // code for "left arrow" key press.
-                snake.xMove = -gridSize;
-                snake.yMove = 0;
-            break;
-            case "ArrowRight" || "d":
-                // code for "right arrow" key press.
-                snake.xMove = gridSize;
-                snake.yMove = 0;
-            break;
-            default:
+        if (!gameOver)
+        {
+            //snake movement inputs
+            switch (event.key) {
+                case "ArrowDown" || "s":
+                    // code for "down arrow" key press.
+                    snake.xMove = 0;
+                    snake.yMove = gridSize;
+                    break;
+                case "ArrowUp" || "w":
+                    // code for "up arrow" key press.
+                    snake.xMove = 0;
+                    snake.yMove = -gridSize;
+                    break;
+                case "ArrowLeft" || "a":
+                    // code for "left arrow" key press.
+                    snake.xMove = -gridSize;
+                    snake.yMove = 0;
+                    break;
+                case "ArrowRight" || "d":
+                    // code for "right arrow" key press.
+                    snake.xMove = gridSize;
+                    snake.yMove = 0;
+                    break;
+                default:
+            }   
+        }
+        else
+        {
+            switch (event.key) {
+                case "Enter":
+                    NewGame();
+                    break;
+                default:
+            }   
+        }
  
             return; // Quit when this doesn't handle the key event.
-        }
  
         // Cancel the default action to avoid it being handled twice
         event.preventDefault();
     }, true);
 }
 
-function drawGrid(){
+function DrawGrid(){
 
     for (var i = 0; i < canvas.width/gridSize; i++)
     {
@@ -216,26 +423,88 @@ function drawGrid(){
         ctx.stroke(); 
     }
 
+}
 
+function GetRandomInt(min, max){
+    return Math.floor(Math.random() * (max - min)) + min;
+}
+
+function NewGame(){
+    snake.x = 160;
+    snake.y = 160;
+    snake.cells = [];
+    snake.cell_count = 4;
+    snake.xMove = gridSize;
+    snake.yMove = 0;
+    gameScore = 0;
+    gameTimer.value = 120;
+    gameOver = false;
+
+    document.getElementById("gameover").style.display = "none";
+    document.getElementById("resetbutton").style.display = "none";
+    document.getElementById("timer").innerHTML = "120";
+
+
+    fruit_on_board = []
+    SpawnNewFruit();
+    gameTimer.start();
 
 }
 
-function getRandomInt(min, max){
-    return Math.floor(Math.random() * (max - min)) + min;
+function GameOver()
+{
+    snake.cell_count = 4;
+    gameTimer.stop();
+    gameTimer.value = 69;
+    gameOver = true;
+
+    document.getElementById("gameover").style.display = "block";
+    document.getElementById("resetbutton").style.display = "block";
+
 }
 </script>
 
-<div id="test" ; style= "color:white;
+<div id="name" ; style= "color:white;
                         position:absolute;
-                        text-align:center;
-                        margin: auto;
-                        display: block;
-                        top: 200px;
-                        bottom: 0;
-                        left: 0;
-                        right: 0;">
-The Snake Game
+                        top: 75%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);   
+                        font-size: 20px;">
+@skythecreative
 </div>
+
+<div id="gameover" ; style= "color:red;
+                        position:absolute;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);   
+                        font-size: 50px;">
+GAME OVER
+</div>
+
+<div id="score" ; style= "color:white;
+                        position:absolute;
+                        top: 25%;
+                        left: 41%;
+                        transform: translate(-50%, -50%);   
+                        font-size: 20px;">
+Score: 0
+</div>
+
+<div id="timer" ; style= "color:white;
+                        position:absolute;
+                        top: 25%;
+                        left: 60%;
+                        transform: translate(-50%, -50%);   
+                        font-size: 20px;">
+120
+</div>
+
+<button id = "resetbutton" onclick="NewGame()" class="button"
+        style = "position:absolute;
+                 bottom:15%">
+    
+    Start New Game</button>
 
 
 </body>
